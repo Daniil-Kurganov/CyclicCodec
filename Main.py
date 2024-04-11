@@ -18,21 +18,14 @@ def show_error_message(int_error_key: str) -> None:
 def checking_the_polynomial_generation_line(string_polynom_generating: str) -> bool:
     '''Проверка корректности вводимой строки генерации полинома'''
     list_checking = string_polynom_generating.split(' ')
-    print(list_checking)
-    if (len(list_checking) - 1) % 2 != 0:
-        print(1)
-        return False
+    if (len(list_checking) - 1) % 2 != 0: return False
     else:
         for int_index, string_element in enumerate(list_checking):
             if int_index % 2 == 0 or int_index == 0:
                 if string_element in ['x', '1']: pass
                 elif re.fullmatch('x\*\*\d', string_element): pass
-                else:
-                    print(2)
-                    return False
-            elif string_element != '+':
-                print(3)
-                return False
+                else: return False
+            elif string_element != '+': return False
         return True
 def creating_generator_matrix(list_matrix_first_string: list) -> list:
     '''Создание порождающей матрицы путём циклического сдвига 1 строки'''
@@ -48,7 +41,7 @@ def start_codec_working() -> None:
     symbol_x = sympy.symbols('x')
     if ui.RadioButtonPlynom.isChecked():
         int_code_subwords_length = int(ui.SpinBoxR.value())
-        string_polynom_generating = ui.TextEditInputPolynomOrMatrixLine.toPlainText()
+        string_polynom_generating = str(ui.TextEditInputPolynomOrMatrixLine.toPlainText())
         if checking_the_polynomial_generation_line(string_polynom_generating) and len(string_polynom_generating) != 0:
             if string_polynom_generating in ['x', '1']:
                 show_error_message(6)
@@ -69,8 +62,7 @@ def start_codec_working() -> None:
         else:
             show_error_message(6)
             return None
-    elif ui.RadioButtonMatrix.isChecked():
-        pass
+    elif ui.RadioButtonMatrix.isChecked(): pass
     return None
 def enable_code_subwords_length() -> None:
     '''Активация ввода длины кодовых подслов'''
