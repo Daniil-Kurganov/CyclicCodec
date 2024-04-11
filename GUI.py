@@ -38,7 +38,6 @@ class Ui_MainWindow(object):
         self.PushButtonStart.setFont(font)
         self.PushButtonStart.setObjectName("PushButtonStart")
         self.LabelN = QtWidgets.QLabel(self.centralwidget)
-        self.LabelN.setEnabled(True)
         self.LabelN.setGeometry(QtCore.QRect(20, 50, 30, 20))
         font = QtGui.QFont()
         font.setPointSize(12)
