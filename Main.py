@@ -3,7 +3,13 @@ from GUI import *
 
 def start_codec_working() -> None:
     '''Начало работы кодека'''
-    pass
+    if ui.RadioButtonPlynom.isChecked():
+        ui.SpinBoxR.setEnabled(True)
+        ui.LabelN.setEnabled(True)
+        # .toPlainText()
+    elif ui.RadioButtonMatrix.isChecked():
+        ui.SpinBoxR.setEnabled(False)
+        ui.LabelN.setEnabled(False)
 
 app = QtWidgets.QApplication(sys.argv)
 MainWindow = QtWidgets.QMainWindow()
