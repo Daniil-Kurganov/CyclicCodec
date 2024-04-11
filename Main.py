@@ -1,13 +1,15 @@
 import sys
 import re
 import sympy
+import math
+import random
 from sympy import poly
 from GUI import *
 from PyQt5.QtWidgets import QMessageBox
 
 def show_error_message(int_error_key: str) -> None:
     '''Вывод ошибок'''
-    dictionary_error_texts = {6: 'Некорректный ввод.', 13: '', 666: ''}
+    dictionary_error_texts = {6: 'Некорректный ввод.', 13: 'Переполнение памяти', 666: '', 451: ''}
     message_error = QMessageBox()
     message_error.setIcon(QMessageBox.Critical)
     message_error.setText("Ошибка")
@@ -23,7 +25,7 @@ def checking_the_polynomial_generation_line(string_polynom_generating: str) -> b
         for int_index, string_element in enumerate(list_checking):
             if int_index % 2 == 0 or int_index == 0:
                 if string_element in ['x', '1']: pass
-                elif re.fullmatch('x\*\*\d', string_element): pass
+                elif re.fullmatch('x\*\*\d(\d)*', string_element): pass
                 else: return False
             elif string_element != '+': return False
         return True
@@ -50,6 +52,27 @@ def find_all_1(string_search_base: str) -> list:
     for int_index, string_current_number in enumerate(string_search_base):
         if string_current_number == '1': list_indices_of_1.append(int_index)
     return list_indices_of_1
+def error_processing(string_current_code_subword: str) -> str:
+    '''Внесение ошибок в текущем кодовом подслове'''
+    list_indices_of_1 = find_all_1(string_current_code_subword)
+    if len(list_indices_of_1) == 0: return string_current_code_subword
+    elif len(list_indices_of_1) > 1: int_position_of_error = random.randint(0, len(string_current_code_subword) - 1)
+    else:
+        while True:
+            int_position_of_error = random.randint(0, len(string_current_code_subword) - 1)
+            if int_position_of_error != list_indices_of_1[0]: break
+    return (string_current_code_subword[:int_position_of_error] + changing_the_bit(string_current_code_subword[int_position_of_error]) +
+        string_current_code_subword[int_position_of_error + 1:])
+def changing_the_bit(string_bit: str) -> str:
+    '''Заменяет бит на противоположный'''
+    if int(string_bit): return '0'
+    else: return '1'
+def division_of_polynomials(polynom_dividend: sympy.Poly, polynom_divider: sympy.Poly) -> (sympy.Poly, sympy.Poly):
+    '''Деление полиномов'''
+    polynom_dividend = sympy.poly(polynom_dividend, symbol_x, domain='GF(2)')
+    polynom_divider = sympy.poly(polynom_divider, symbol_x, domain='GF(2)')
+    polynom_quotient, polynom_remainder = sympy.div(polynom_dividend, polynom_divider, symbol_x)
+    return polynom_quotient, polynom_remainder
 def start_codec_working() -> None:
     '''Начало работы кодека'''
     global int_information_subwords_length, symbol_x
@@ -89,10 +112,76 @@ def start_codec_working() -> None:
         list_generator_matrix = creating_generator_matrix(list(string_input_first_string))
         polynom_generating = creating_polynom(string_input_first_string)
     print('Порождающая матрица: ')
-    for l in list_generator_matrix:
-        print(l)
+    for list_current_row in list_generator_matrix:
+        print(list_current_row)
     print()
     print('Порождающий полином: {}'.format(polynom_generating.as_expr()))
+    string_input_text_real = str(ui.TextEditInputText.toPlainText())
+    string_input_text_binary = bin(int.from_bytes(string_input_text_real.encode(), 'big'))[2:]
+    ui.TextEditOutputBinaryTextIn.setText(string_input_text_binary)
+    list_informaion_subwords, list_code_subwords, list_submessages = [], [], []
+    int_count_of_zeros = 0
+    if len(string_input_text_binary) > int_information_subwords_length:
+        for int_iteration in range(1, math.ceil(len(string_input_text_binary) / int_information_subwords_length)):
+            list_informaion_subwords.append(string_input_text_binary[int_iteration * int_information_subwords_length -
+                                                                     int_information_subwords_length:int_iteration * int_information_subwords_length])
+        if len(string_input_text_binary) % int_information_subwords_length != 0:
+            int_count_of_zeros = int_information_subwords_length - (len(string_input_text_binary) -
+                                                                    (int_information_subwords_length * (
+                                                                                len(string_input_text_binary) // int_information_subwords_length)))
+            list_informaion_subwords.append(
+                ('0' * int_count_of_zeros) + string_input_text_binary[
+                                             -(int_information_subwords_length - int_count_of_zeros):])
+        else:
+            list_informaion_subwords.append(string_input_text_binary[-int_information_subwords_length:])
+    else:
+        try:
+            int_count_of_zeros = int_information_subwords_length - len(string_input_text_binary)
+            list_informaion_subwords.append(('0' * int_count_of_zeros) + string_input_text_binary)
+        except:
+            show_error_message(13)
+            return None
+    print('Список информационных подслов:')
+    for string_current_information_subword in list_informaion_subwords:
+        print(string_current_information_subword)
+    print()
+    for string_current_information_subword in list_informaion_subwords:
+        list_indices_of_1 = find_all_1(string_current_information_subword)
+        string_current_code_subword = ''
+        for int_current_index_of_column in range(int_code_subwords_length):
+            int_current_bit = 0
+            for int_current_index_of_row in range(len(list_generator_matrix)):
+                if int_current_index_of_row in list_indices_of_1:
+                    int_current_bit = int(ord(str(int_current_bit)) ^ ord(str(
+                        list_generator_matrix[int_current_index_of_row][int_current_index_of_column])))
+            string_current_code_subword += str(int_current_bit)
+        list_code_subwords.append(string_current_code_subword)
+    ui.TableWidgetCodeSubwordsOrigins.setRowCount(1)
+    ui.TableWidgetCodeSubwordsOrigins.setColumnCount(len(list_code_subwords))
+    ui.TableWidgetCodeSubwordsOrigins.verticalHeader().setVisible(False)
+    ui.TableWidgetCodeSubwordsOrigins.horizontalHeader().setVisible(False)
+    for int_counter_iteration in range(len(list_code_subwords)):
+        ui.TableWidgetCodeSubwordsOrigins.setItem(0, int_counter_iteration,
+                                                  QtWidgets.QTableWidgetItem(
+                                                      str(list_code_subwords[int_counter_iteration])))
+    for string_current_code_subword in list_code_subwords:
+        list_submessages.append(error_processing(string_current_code_subword))
+    ui.TableWidgetSubmessages.setRowCount(1)
+    ui.TableWidgetSubmessages.setColumnCount(len(list_submessages))
+    ui.TableWidgetSubmessages.verticalHeader().setVisible(False)
+    ui.TableWidgetSubmessages.horizontalHeader().setVisible(False)
+    for int_counter_iteration in range(len(list_submessages)):
+        ui.TableWidgetSubmessages.setItem(0, int_counter_iteration,
+                                                  QtWidgets.QTableWidgetItem(
+                                                      str(list_submessages[int_counter_iteration])))
+    string_message_text_binary = ''.join(list_submessages)
+    ui.TextEditOutputBinaryTextOut.setText(string_message_text_binary)
+    polynom_table_error_vector = poly('x**{}'.format(sympy.degree(polynom_generating)))
+    _, polynom_table_error_syndrome = division_of_polynomials(polynom_table_error_vector, polynom_generating)
+    print('Табличный вектор ошибки: {}'.format(polynom_table_error_vector.as_expr()))
+    print('Табличный cиндром ошибки: {}'.format(polynom_table_error_syndrome.as_expr()))
+    int_interation = 0
+    list_new_information_subwords = []
     return None
 def enable_code_subwords_length() -> None:
     '''Активация ввода длины кодовых подслов'''
