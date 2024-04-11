@@ -35,6 +35,21 @@ def creating_generator_matrix(list_matrix_first_string: list) -> list:
         list_current_format = [list_current_format[-1]] + list_current_format[:-1]
         list_generator_matrix.append(list_current_format)
     return list_generator_matrix
+def creating_polynom(string_subword: str) -> sympy.Poly:
+    '''Перевод бинарного сообщения в полином'''
+    string_polynom = ''
+    for int_index_of_current_1 in find_all_1(string_subword):
+        if int_index_of_current_1 == 0: string_polynom += '1'
+        elif int_index_of_current_1 == 1: string_polynom += 'x'
+        else: string_polynom += 'x**{}'.format(int_index_of_current_1)
+        string_polynom += ' + '
+    return poly(string_polynom[:-3], symbol_x, domain='GF(2)')
+def find_all_1(string_search_base: str) -> list:
+    '''Нахождение индексов 1 в строке'''
+    list_indices_of_1 = []
+    for int_index, string_current_number in enumerate(string_search_base):
+        if string_current_number == '1': list_indices_of_1.append(int_index)
+    return list_indices_of_1
 def start_codec_working() -> None:
     '''Начало работы кодека'''
     global int_information_subwords_length, symbol_x
@@ -46,12 +61,14 @@ def start_codec_working() -> None:
             if string_polynom_generating in ['x', '1']:
                 show_error_message(6)
                 return None
-            try: polynom_generating = poly(string_polynom_generating, symbol_x)
+            try: polynom_generating = poly(string_polynom_generating, symbol_x, domain = 'GF(2)')
             except:
                 show_error_message(6)
                 return None
             int_information_subwords_length = int_code_subwords_length - sympy.degree(polynom_generating)
-            if sympy.degree(polynom_generating) >= int_code_subwords_length - 1: show_error_message(6)
+            if sympy.degree(polynom_generating) >= int_code_subwords_length - 1:
+                show_error_message(6)
+                return None
             list_polynom_dergees = [tuple_current_degree[0] for tuple_current_degree in
                                     polynom_generating.as_dict().keys()]
             string_matrix_first_string = '0' * int_code_subwords_length
@@ -62,7 +79,20 @@ def start_codec_working() -> None:
         else:
             show_error_message(6)
             return None
-    elif ui.RadioButtonMatrix.isChecked(): pass
+    elif ui.RadioButtonMatrix.isChecked():
+        string_input_first_string = str(ui.TextEditInputPolynomOrMatrixLine.toPlainText())
+        if not re.fullmatch('[10]*', string_input_first_string):
+            show_error_message(6)
+            return None
+        int_code_subwords_length = len(string_input_first_string)
+        int_information_subwords_length = int_code_subwords_length - string_input_first_string.rfind('1')
+        list_generator_matrix = creating_generator_matrix(list(string_input_first_string))
+        polynom_generating = creating_polynom(string_input_first_string)
+    print('Порождающая матрица: ')
+    for l in list_generator_matrix:
+        print(l)
+    print()
+    print('Порождающий полином: {}'.format(polynom_generating.as_expr()))
     return None
 def enable_code_subwords_length() -> None:
     '''Активация ввода длины кодовых подслов'''
