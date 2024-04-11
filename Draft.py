@@ -26,7 +26,7 @@ def changing_the_bit(string_bit: str) -> str:
     if int(string_bit): return '0'
     else: return '1'
 def error_processing(string_current_code_subword: str) -> str:
-    '''Внесение/исправление ошибок в текущем кодовом подслове'''
+    '''Внесение ошибок в текущем кодовом подслове'''
     list_indices_of_1 = find_all_1(string_current_code_subword)
     if len(list_indices_of_1) == 0: return string_current_code_subword
     elif len(list_indices_of_1) > 1: int_position_of_error = random.randint(0, len(string_current_code_subword) - 1)
