@@ -9,7 +9,8 @@ from PyQt5.QtWidgets import QMessageBox
 
 def show_error_message(int_error_key: str) -> None:
     '''Вывод ошибок'''
-    dictionary_error_texts = {6: 'Некорректный ввод.', 13: 'Переполнение памяти', 666: '', 451: ''}
+    dictionary_error_texts = {6: 'Некорректный ввод.', 13: 'Переполнение памяти', 451: 'Текущий синдромный полином отсутствует.',
+                              666: 'Алгоритм декодировки отработал некорректно.'}
     message_error = QMessageBox()
     message_error.setIcon(QMessageBox.Critical)
     message_error.setText("Ошибка")
@@ -104,7 +105,7 @@ def start_codec_working() -> None:
             return None
     elif ui.RadioButtonMatrix.isChecked():
         string_input_first_string = str(ui.TextEditInputPolynomOrMatrixLine.toPlainText())
-        if not re.fullmatch('[10]*', string_input_first_string):
+        if not re.fullmatch('[10]*', string_input_first_string) or len(find_all_1(string_input_first_string)) <= 1:
             show_error_message(6)
             return None
         int_code_subwords_length = len(string_input_first_string)
@@ -175,13 +176,84 @@ def start_codec_working() -> None:
                                                   QtWidgets.QTableWidgetItem(
                                                       str(list_submessages[int_counter_iteration])))
     string_message_text_binary = ''.join(list_submessages)
-    ui.TextEditOutputBinaryTextOut.setText(string_message_text_binary)
+    print('Сообщение в бинарном формате: {}'.format(string_message_text_binary))
     polynom_table_error_vector = poly('x**{}'.format(sympy.degree(polynom_generating)))
     _, polynom_table_error_syndrome = division_of_polynomials(polynom_table_error_vector, polynom_generating)
     print('Табличный вектор ошибки: {}'.format(polynom_table_error_vector.as_expr()))
     print('Табличный cиндром ошибки: {}'.format(polynom_table_error_syndrome.as_expr()))
     int_interation = 0
     list_new_information_subwords = []
+    for string_current_submessage in list_submessages:
+        print('\nТекущее подсообщение: {}'.format(string_current_submessage))
+        if len(find_all_1(string_current_submessage)) == 0:
+            print('Текущее подслово сообщения: {}'.format(string_current_submessage))
+            string_current_information_subword = string_current_submessage[:int_information_subwords_length]
+        else:
+            polynom_current_submessage = creating_polynom(string_current_submessage)
+            _, polynom_0_error_syndrome = division_of_polynomials(polynom_current_submessage, polynom_generating)
+            if polynom_0_error_syndrome == 0:
+                pass
+            else:
+                if polynom_0_error_syndrome == polynom_table_error_syndrome:
+                    polynome_current_error_vector = polynom_table_error_vector
+                else:
+                    int_index_of_alignment = 0
+                    polynom_current_error_syndrome = polynom_0_error_syndrome
+                    while True:
+                        _, polynom_current_error_syndrome = division_of_polynomials(
+                            polynom_current_error_syndrome.mul(poly('x')), polynom_generating)
+                        int_index_of_alignment += 1
+                        if int_index_of_alignment > int_code_subwords_length - 1:
+                            show_error_message(451)
+                            return None
+                        if polynom_current_error_syndrome == polynom_table_error_syndrome: break
+                    _, polynome_current_error_vector = division_of_polynomials(
+                        poly('x**{}'.format(int_code_subwords_length - int_index_of_alignment), symbol_x).mul(
+                            polynom_table_error_vector),
+                        poly('x**{} - 1'.format(int_code_subwords_length), symbol_x))
+                    print('Итерация совпадения синдромов: {}'.format(int_index_of_alignment))
+                print('Текущий вектор ошибки: {}'.format(polynome_current_error_vector.as_expr()))
+                if polynome_current_error_vector.as_expr() == 1:
+                    if string_current_submessage[0] == '1': polynom_current_submessage = creating_polynom(
+                        '0' + string_current_submessage[1:])
+                else:
+                    dictionary_current_error_vector, dictionary_current_submessage = polynome_current_error_vector.as_dict(), polynom_current_submessage.as_dict()
+                    for tuple_current_degree in dictionary_current_error_vector.keys():
+                        if tuple_current_degree in dictionary_current_submessage.keys() and (
+                                dictionary_current_error_vector[tuple_current_degree] +
+                                dictionary_current_submessage[tuple_current_degree]) % 2 == 0:
+                            polynom_current_submessage = polynom_current_submessage - poly(
+                                'x**{}'.format(str(tuple_current_degree[0])))
+                        elif tuple_current_degree not in dictionary_current_submessage.keys():
+                            polynom_current_submessage = polynom_current_submessage + poly(
+                                'x**{}'.format(str(tuple_current_degree[0])))
+                print('Текущее подсообщение с исправленной ошибкой: {}'.format(polynom_current_submessage.as_expr()))
+            polynom_current_information_subword, polynom_remainder = division_of_polynomials(polynom_current_submessage,
+                                                                                             polynom_generating)
+            if polynom_remainder != 0: print('В текущем блоке допущена ошибка!')
+            print('Текущий полином информационного подслова: {}'.format(polynom_current_information_subword.as_expr()))
+            string_current_information_subword = ''.join(
+                str(current_number) for current_number in polynom_current_information_subword.as_list())
+            string_current_information_subword = string_current_information_subword[::-1]
+            if len(string_current_information_subword) < int_information_subwords_length:
+                string_current_information_subword += '0' * (
+                            int_information_subwords_length - len(string_current_information_subword))
+        list_new_information_subwords.append(string_current_information_subword)
+        print('Текущее декодированное информационное подслово: {} <-> {}'.format(string_current_information_subword,
+                                                                                 list_informaion_subwords[
+                                                                                     int_interation]))
+        int_interation += 1
+    if int_count_of_zeros > 0: list_new_information_subwords[-1] = list_new_information_subwords[-1][
+                                                                   int_count_of_zeros:]
+    string_output_text_binary = ''.join(list_new_information_subwords)
+    ui.TextEditOutputBinaryTextOut.setText(string_output_text_binary)
+    try:
+        string_output_text_real = int(string_output_text_binary, 2).to_bytes(
+            (int(string_output_text_binary, 2).bit_length() + 7) // 8, 'big').decode()
+        ui.TextEditOutputText.setText(string_output_text_real)
+    except:
+        show_error_message(666)
+        return None
     return None
 def enable_code_subwords_length() -> None:
     '''Активация ввода длины кодовых подслов'''
